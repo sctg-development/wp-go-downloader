@@ -11,7 +11,7 @@ permissions:
 jobs:
   build-and-upload:
     name: Build and upload
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
 
     strategy:
       matrix:
@@ -71,16 +71,16 @@ jobs:
         shell: bash
         run: |
           # Replace with the name of your binary
-          binary_name="wp-go-downloader"
+          export binary_name="wp-go-downloader"
 
-          dirname="$binary_name-${{ env.VERSION }}-${{ matrix.target }}"
-          mkdir "$dirname"
-          if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            cp "$binary_name.exe" "$binary_name_${{ matrix.family }}_${{ matrix.arch }}_${{ env.VERSION }}.exe"
+          dirname="${binary_name}-${{ env.VERSION }}-${{ matrix.family }}"
+          mkdir "${dirname}"
+          if [ "${{ matrix.family }}" = "windows" ]; then
+            cp "${binary_name}.exe" "${binary_name}_${{ matrix.family }}_${{ matrix.arch }}_${{ env.VERSION }}.exe"
             echo "ASSET=$binary_name_${{ matrix.family }}_${{ matrix.arch }}_${{ env.VERSION }}.exe" >> $GITHUB_ENV
           else
-            cp "$binary_name" "$binary_name_${{ matrix.family }}_${{ matrix.arch }}_${{ env.VERSION }}"
-            echo "ASSET=$binary_name_${{ matrix.family }}_${{ matrix.arch }}_${{ env.VERSION }}" >> $GITHUB_ENV 
+            cp "${binary_name}" "${binary_name}_${{ matrix.family }}_${{ matrix.arch }}_${{ env.VERSION }}"
+            echo "ASSET=${binary_name}_${{ matrix.family }}_${{ matrix.arch }}_${{ env.VERSION }}" >> $GITHUB_ENV 
           fi
           ls -l
           echo $ASSET
