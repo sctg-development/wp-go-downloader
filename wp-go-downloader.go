@@ -1502,7 +1502,6 @@ func main() {
 	// Parse command line arguments
 	var (
 		targetURL      string
-		maxDepth       int
 		concurrency    int
 		customOutDir   string
 		includePattern string
@@ -1512,7 +1511,6 @@ func main() {
 	)
 
 	flag.StringVar(&targetURL, "url", defaultURL, "URL to download")
-	flag.IntVar(&maxDepth, "depth", 5, "Maximum crawl depth")
 	flag.IntVar(&concurrency, "concurrency", 10, "Maximum concurrent downloads")
 	flag.StringVar(&customOutDir, "outdir", "", "Custom output directory")
 	flag.StringVar(&includePattern, "include", "", "Only include URLs matching this regex")
