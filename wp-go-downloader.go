@@ -66,6 +66,10 @@ var (
 	directoryURLs = make(map[string]bool)
 	// Maximum concurrent downloads
 	maxConcurrency int
+	// Include pattern regex
+	includeRegex *regexp.Regexp
+	// Exclude pattern regex
+	excludeRegex *regexp.Regexp
 )
 
 // Extractor manages the process of downloading a website
@@ -409,6 +413,11 @@ func (e *Extractor) ScrapLinks() {
 
 				// Skip external URLs - keep URL as is
 				if IsExternalURL(linkURL) {
+					continue
+				}
+
+				// Apply include/exclude patterns
+				if !shouldProcessURL(linkURL) {
 					continue
 				}
 
@@ -1458,6 +1467,21 @@ func isHTMLPage(urlStr string) bool {
 	return ext == ".html" || ext == ".htm" || ext == ".php" || ext == ""
 }
 
+// shouldProcessURL checks if a URL should be processed based on the include/exclude patterns
+func shouldProcessURL(url string) bool {
+	// If include pattern is set, URL must match it
+	if includeRegex != nil && !includeRegex.MatchString(url) {
+		return false
+	}
+
+	// If exclude pattern is set, URL must not match it
+	if excludeRegex != nil && excludeRegex.MatchString(url) {
+		return false
+	}
+
+	return true
+}
+
 func main() {
 	// Parse command line arguments
 	var (
@@ -1492,6 +1516,27 @@ func main() {
 
 	// Set maximum concurrency
 	maxConcurrency = concurrency
+
+	// Compile include/exclude regex patterns if provided
+	if includePattern != "" {
+		var err error
+		includeRegex, err = regexp.Compile(includePattern)
+		if err != nil {
+			fmt.Printf("Invalid include pattern: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("Using include pattern: %s\n", includePattern)
+	}
+
+	if excludePattern != "" {
+		var err error
+		excludeRegex, err = regexp.Compile(excludePattern)
+		if err != nil {
+			fmt.Printf("Invalid exclude pattern: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("Using exclude pattern: %s\n", excludePattern)
+	}
 
 	// Extract domain name to use as output folder
 	parsedURL, err := url.Parse(targetURL)
