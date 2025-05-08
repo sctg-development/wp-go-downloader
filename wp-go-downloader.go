@@ -41,6 +41,7 @@ import (
 	"time"
 
 	"context"
+	"log"
 
 	"golang.org/x/net/html"
 	"golang.org/x/sync/semaphore"
@@ -70,7 +71,22 @@ var (
 	includeRegex *regexp.Regexp
 	// Exclude pattern regex
 	excludeRegex *regexp.Regexp
+	// Initialize loggers
+	infoLog  *log.Logger
+	errorLog *log.Logger
+	debugLog *log.Logger
 )
+
+func initLoggers(verbose bool) {
+	infoLog = log.New(os.Stdout, "INFO: ", log.Ldate|log.Ltime)
+	errorLog = log.New(os.Stderr, "ERROR: ", log.Ldate|log.Ltime|log.Lshortfile)
+
+	if verbose {
+		debugLog = log.New(os.Stdout, "DEBUG: ", log.Ldate|log.Ltime|log.Lshortfile)
+	} else {
+		debugLog = log.New(io.Discard, "", 0)
+	}
+}
 
 // Extractor manages the process of downloading a website
 type Extractor struct {
@@ -128,19 +144,19 @@ func (e *Extractor) Run() error {
 
 		// Only process if it's not the initial URL (which was already processed in NewExtractor)
 		if currentURL != e.URL {
-			fmt.Printf("\nProcessing additional HTML page: %s\n", currentURL)
+			infoLog.Printf("Processing additional HTML page: %s", currentURL)
 
 			// Get and parse the HTML content
 			content, err := e.GetPageContent(currentURL)
 			if err != nil {
-				fmt.Printf("Error fetching %s: %v\n", currentURL, err)
+				errorLog.Printf("Error fetching %s: %v", currentURL, err)
 				continue
 			}
 
 			// Parse the HTML document
 			doc, err := html.Parse(strings.NewReader(content))
 			if err != nil {
-				fmt.Printf("Error parsing HTML for %s: %v\n", currentURL, err)
+				errorLog.Printf("Error parsing HTML for %s: %v", currentURL, err)
 				continue
 			}
 
@@ -160,24 +176,24 @@ func (e *Extractor) Run() error {
 
 			// Make sure the directory exists
 			if err := os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil {
-				fmt.Printf("Failed to create directory for %s: %v\n", localPath, err)
+				errorLog.Printf("Failed to create directory for %s: %v", localPath, err)
 				continue
 			}
 
 			// Save the modified HTML
 			var buf bytes.Buffer
 			if err := html.Render(&buf, doc); err != nil {
-				fmt.Printf("Failed to render HTML for %s: %v\n", currentURL, err)
+				errorLog.Printf("Failed to render HTML for %s: %v", currentURL, err)
 				continue
 			}
 
 			// Write to file
 			if err := os.WriteFile(outputPath, buf.Bytes(), 0644); err != nil {
-				fmt.Printf("Failed to write HTML file %s: %v\n", outputPath, err)
+				errorLog.Printf("Failed to write HTML file %s: %v", outputPath, err)
 				continue
 			}
 
-			fmt.Printf("Saved HTML file: %s\n", localPath)
+			infoLog.Printf("Saved HTML file: %s", localPath)
 		}
 	}
 
@@ -211,7 +227,7 @@ func (e *Extractor) Run() error {
 
 	// Download any missing files found during post-processing
 	if len(missingFiles) > 0 {
-		fmt.Printf("\nDownloading %d missing files found during post-processing...\n", len(missingFiles))
+		infoLog.Printf("Downloading %d missing files found during post-processing...", len(missingFiles))
 		if err := e.DownloadMissingFiles(missingFiles); err != nil {
 			return fmt.Errorf("failed to download missing files: %v", err)
 		}
@@ -308,7 +324,7 @@ func (e *Extractor) ScrapScripts() {
 
 				// Skip external scripts - keep URL as is
 				if IsExternalURL(scriptURL) {
-					fmt.Printf("Keeping external script URL: %s\n", scriptURL)
+					infoLog.Printf("Keeping external script URL: %s", scriptURL)
 					continue
 				}
 
@@ -368,7 +384,7 @@ func (e *Extractor) ScrapForms() {
 
 				// Skip external URLs - keep URL as is
 				if IsExternalURL(formURL) {
-					fmt.Printf("Keeping external form action URL: %s\n", formURL)
+					infoLog.Printf("Keeping external form action URL: %s", formURL)
 					continue
 				}
 
@@ -470,7 +486,7 @@ func (e *Extractor) ScrapImages() {
 
 				// Skip external URLs - keep URL as is
 				if IsExternalURL(imgURL) {
-					fmt.Printf("Keeping external image URL: %s\n", imgURL)
+					infoLog.Printf("Keeping external image URL: %s", imgURL)
 					continue
 				}
 
@@ -591,7 +607,7 @@ func (e *Extractor) ScrapStylesheets() {
 
 				// Skip external URLs - keep URL as is
 				if IsExternalURL(linkURL) {
-					fmt.Printf("Keeping external stylesheet URL: %s\n", linkURL)
+					infoLog.Printf("Keeping external stylesheet URL: %s", linkURL)
 					continue
 				}
 
@@ -681,7 +697,7 @@ func (e *Extractor) SaveFiles() error {
 	total := len(e.ScrapedURLs)
 	var counter int32
 
-	fmt.Printf("Downloading %d files with %d workers...\n", total, maxConcurrency)
+	infoLog.Printf("Downloading %d files with %d workers...", total, maxConcurrency)
 
 	// Download each file concurrently
 	for url := range e.ScrapedURLs {
@@ -714,7 +730,7 @@ func (e *Extractor) SaveFiles() error {
 			// Update progress counter
 			atomic.AddInt32(&counter, 1)
 			if counter%10 == 0 || counter == int32(total) {
-				fmt.Printf("\rProgress: %d/%d files downloaded (%.1f%%)", counter, total, float64(counter)/float64(total)*100)
+				infoLog.Printf("Progress: %d/%d files downloaded (%.1f%%)", counter, total, float64(counter)/float64(total)*100)
 			}
 		}(url)
 	}
@@ -726,11 +742,11 @@ func (e *Extractor) SaveFiles() error {
 	// Report any errors
 	errorCount := 0
 	for err := range errorsChan {
-		fmt.Printf("\nError: %v", err)
+		errorLog.Printf("Error: %v", err)
 		errorCount++
 	}
 
-	fmt.Printf("\nDownload complete: %d files successfully downloaded, %d errors\n", total-errorCount, errorCount)
+	infoLog.Printf("Download complete: %d files successfully downloaded, %d errors", total-errorCount, errorCount)
 
 	return nil
 }
@@ -752,7 +768,7 @@ func (e *Extractor) DownloadFile(url string, outputPath string) error {
 
 		// If this wasn't the last attempt, sleep before retry
 		if attempt < maxRetries-1 {
-			fmt.Printf("Retrying download of %s (attempt %d/%d)\n", url, attempt+1, maxRetries)
+			infoLog.Printf("Retrying download of %s (attempt %d/%d)", url, attempt+1, maxRetries)
 			time.Sleep(retryDelay)
 			// Exponential backoff
 			retryDelay *= 2
@@ -798,7 +814,7 @@ func (e *Extractor) downloadFileOnce(url, outputPath string) error {
 		}
 
 		relPath, _ := filepath.Rel(workspace, outputPath)
-		fmt.Printf("Downloaded directory index to %s\n", relPath)
+		infoLog.Printf("Downloaded directory index to %s", relPath)
 
 		return nil
 	}
@@ -842,7 +858,7 @@ func (e *Extractor) downloadFileOnce(url, outputPath string) error {
 	}
 
 	relPath, _ := filepath.Rel(workspace, outputPath)
-	fmt.Printf("Downloaded %s to %s\n", fileName, relPath)
+	infoLog.Printf("Downloaded %s to %s", fileName, relPath)
 
 	return nil
 }
@@ -855,7 +871,7 @@ func (e *Extractor) DownloadMissingFiles(missingFiles map[string]string) error {
 
 		// Download the file
 		if err := e.DownloadFile(url, outputPath); err != nil {
-			fmt.Printf("Failed to download missing file %s: %v\n", url, err)
+			errorLog.Printf("Failed to download missing file %s: %v", url, err)
 			continue
 		}
 	}
@@ -893,7 +909,7 @@ func (e *Extractor) SaveHTML() error {
 	}
 
 	relPath, _ := filepath.Rel(workspace, htmlPath)
-	fmt.Printf("Saved index.html to %s\n", relPath)
+	infoLog.Printf("Saved index.html to %s", relPath)
 
 	return nil
 }
@@ -966,7 +982,7 @@ func NormalizeURL(urlStr string) string {
 // PostProcessHTMLFiles walks through all HTML files in the output folder
 // and converts any remaining absolute URLs to relative ones
 func PostProcessHTMLFiles() (map[string]string, error) {
-	fmt.Println("\nPost-processing HTML files to convert absolute URLs to relative...")
+	infoLog.Println("Post-processing HTML files to convert absolute URLs to relative...")
 
 	// Map to track missing files (URL -> local path)
 	missingFiles := make(map[string]string)
@@ -986,7 +1002,7 @@ func PostProcessHTMLFiles() (map[string]string, error) {
 		if strings.HasSuffix(strings.ToLower(path), ".html") {
 			foundMissing, err := ProcessHTMLFile(path, missingFiles)
 			if err != nil {
-				fmt.Printf("Error processing %s: %v\n", path, err)
+				errorLog.Printf("Error processing %s: %v", path, err)
 			}
 
 			// Add any missing files found
@@ -1184,7 +1200,7 @@ func ProcessHTMLFile(filePath string, missingFiles map[string]string) (map[strin
 	}
 
 	relativePath, _ := filepath.Rel(filepath.Join(workspace, outputFolder), filePath)
-	fmt.Printf("Processed %s\n", relativePath)
+	infoLog.Printf("Processed %s", relativePath)
 
 	return localMissingFiles, nil
 }
@@ -1250,7 +1266,7 @@ func AbsoluteToRelative(absolutePath string, prefix string) string {
 
 // ProcessCSSFiles finds all downloaded CSS files and extracts URLs for fonts, images, etc.
 func ProcessCSSFiles() (map[string]string, error) {
-	fmt.Println("\nProcessing CSS files to extract referenced resources...")
+	infoLog.Println("Processing CSS files to extract referenced resources...")
 	missingFiles := make(map[string]string)
 
 	// Walk through all files in the output directory
@@ -1268,7 +1284,7 @@ func ProcessCSSFiles() (map[string]string, error) {
 		if strings.HasSuffix(strings.ToLower(path), ".css") {
 			foundResources, err := ExtractResourcesFromCSS(path)
 			if err != nil {
-				fmt.Printf("Error processing CSS file %s: %v\n", path, err)
+				errorLog.Printf("Error processing CSS file %s: %v", path, err)
 			} else {
 				// Add found resources to the missing files map
 				for url, localPath := range foundResources {
@@ -1438,7 +1454,7 @@ func ExtractResourcesFromCSS(cssFilePath string) (map[string]string, error) {
 	}
 
 	relativePath, _ := filepath.Rel(filepath.Join(workspace, outputFolder), cssFilePath)
-	fmt.Printf("Processed CSS file: %s (found %d resources)\n", relativePath, len(resources))
+	infoLog.Printf("Processed CSS file: %s (found %d resources)", relativePath, len(resources))
 
 	return resources, nil
 }
@@ -1505,6 +1521,7 @@ func main() {
 	flag.BoolVar(&verbose, "verbose", false, "Enable verbose logging")
 	flag.Parse()
 
+	initLoggers(verbose)
 	// If URL provided as positional argument, use it
 	args := flag.Args()
 	if len(args) > 0 {
@@ -1522,26 +1539,26 @@ func main() {
 		var err error
 		includeRegex, err = regexp.Compile(includePattern)
 		if err != nil {
-			fmt.Printf("Invalid include pattern: %v\n", err)
+			errorLog.Printf("Invalid include pattern: %v", err)
 			os.Exit(1)
 		}
-		fmt.Printf("Using include pattern: %s\n", includePattern)
+		infoLog.Printf("Using include pattern: %s", includePattern)
 	}
 
 	if excludePattern != "" {
 		var err error
 		excludeRegex, err = regexp.Compile(excludePattern)
 		if err != nil {
-			fmt.Printf("Invalid exclude pattern: %v\n", err)
+			errorLog.Printf("Invalid exclude pattern: %v", err)
 			os.Exit(1)
 		}
-		fmt.Printf("Using exclude pattern: %s\n", excludePattern)
+		infoLog.Printf("Using exclude pattern: %s", excludePattern)
 	}
 
 	// Extract domain name to use as output folder
 	parsedURL, err := url.Parse(targetURL)
 	if err != nil {
-		fmt.Printf("Invalid URL: %v\n", err)
+		errorLog.Printf("Invalid URL: %v", err)
 		os.Exit(1)
 	}
 
@@ -1560,23 +1577,23 @@ func main() {
 		outputFolder = parsedURL.Hostname()
 	}
 
-	fmt.Printf("Saving website to: %s\n", filepath.Join(workspace, outputFolder))
+	infoLog.Printf("Saving website to: %s", filepath.Join(workspace, outputFolder))
 
 	// Create a new extractor
-	fmt.Printf("Extracting files from %s\n\n", targetURL)
+	infoLog.Printf("Extracting files from %s", targetURL)
 	extractor, err := NewExtractor(targetURL)
 	if err != nil {
-		fmt.Printf("Failed to create extractor: %v\n", err)
+		errorLog.Printf("Failed to create extractor: %v", err)
 		os.Exit(1)
 	}
 
 	// Run the extraction process
 	if err := extractor.Run(); err != nil {
-		fmt.Printf("Error during extraction: %v\n", err)
+		errorLog.Printf("Error during extraction: %v", err)
 		os.Exit(1)
 	}
 
 	// Count the number of scraped URLs
 	count := len(extractor.ScrapedURLs)
-	fmt.Printf("\nTotal extracted files: %d\n", count)
+	infoLog.Printf("Total extracted files: %d", count)
 }
