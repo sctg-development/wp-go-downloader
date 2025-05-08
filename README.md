@@ -2,6 +2,17 @@
 
 A robust Go-based tool for downloading WordPress websites for offline viewing. This project allows you to create a complete offline copy of a WordPress website while maintaining its structure, assets, and navigation.
 
+## Disclaimer
+
+This project designed for downloading a specific WordPress website but has been generalized to work with many WordPress sites.  
+A such downloader probably needs to be adapted for each website.  
+It is not intended for use on websites that you do not own or have permission to download. Always respect the terms of service and copyright of the websites you are working with.
+
+## Star the project
+
+**If you appreciate my work, please consider giving it a star! 🤩**
+
+
 ## Features
 
 - Downloads complete WordPress sites with all assets (images, CSS, JavaScript, fonts, etc.)
@@ -72,7 +83,9 @@ The resulting offline website will be saved in a folder with the domain name.
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome! Please feel free to submit a Pull Request.  
+Keep in mind that this tool is designed for a specific use case and may require adjustments for different WordPress sites.  
+Your welcome to open some Pull Requests to improve the tool or add new features for generalize this tool.
 
 ## License
 
