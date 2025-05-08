@@ -36,9 +36,14 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
+	"context"
+
 	"golang.org/x/net/html"
+	"golang.org/x/sync/semaphore"
 )
 
 // Constants and global variables
@@ -654,22 +659,68 @@ func (e *Extractor) SaveFiles() error {
 		return fmt.Errorf("failed to clean output directory: %v", err)
 	}
 
-	// Download each file
+	// Use a semaphore to limit concurrency
+	const maxWorkers = 10
+	sem := semaphore.NewWeighted(maxWorkers)
+	ctx := context.Background()
+
+	var wg sync.WaitGroup
+	errorsChan := make(chan error, len(e.ScrapedURLs))
+
+	// Track progress
+	total := len(e.ScrapedURLs)
+	var counter int32
+
+	fmt.Printf("Downloading %d files...\n", total)
+
+	// Download each file concurrently
 	for url := range e.ScrapedURLs {
-		// Convert URL to local path
-		localPath := URLToLocalPath(url, false)
-		if localPath == "" {
-			continue
-		}
+		wg.Add(1)
 
-		outputPath := filepath.Join(workspace, outputFolder, localPath)
+		go func(url string) {
+			defer wg.Done()
 
-		// Download the file
-		if err := e.DownloadFile(url, outputPath); err != nil {
-			fmt.Printf("Failed to download %s: %v\n", url, err)
-			continue
-		}
+			// Acquire semaphore
+			if err := sem.Acquire(ctx, 1); err != nil {
+				errorsChan <- fmt.Errorf("failed to acquire semaphore: %v", err)
+				return
+			}
+			defer sem.Release(1)
+
+			// Convert URL to local path
+			localPath := URLToLocalPath(url, false)
+			if localPath == "" {
+				return
+			}
+
+			outputPath := filepath.Join(workspace, outputFolder, localPath)
+
+			// Download the file
+			if err := e.DownloadFile(url, outputPath); err != nil {
+				errorsChan <- fmt.Errorf("failed to download %s: %v", url, err)
+				return
+			}
+
+			// Update progress counter
+			atomic.AddInt32(&counter, 1)
+			if counter%10 == 0 || counter == int32(total) {
+				fmt.Printf("\rProgress: %d/%d files downloaded (%.1f%%)", counter, total, float64(counter)/float64(total)*100)
+			}
+		}(url)
 	}
+
+	// Wait for all downloads to complete
+	wg.Wait()
+	close(errorsChan)
+
+	// Report any errors
+	errorCount := 0
+	for err := range errorsChan {
+		fmt.Printf("\nError: %v", err)
+		errorCount++
+	}
+
+	fmt.Printf("\nDownload complete: %d files successfully downloaded, %d errors\n", total-errorCount, errorCount)
 
 	return nil
 }
