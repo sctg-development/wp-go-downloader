@@ -22,6 +22,7 @@ jobs:
             arch: amd64
             family: linux
             binary_name: wp-go-downloader
+            file_extension: ""
             
           - build: windows
             os: windows-latest
@@ -29,6 +30,7 @@ jobs:
             arch: amd64
             family: windows
             binary_name: wp-go-downloader.exe
+            file_extension: ".exe"
 
           - build: macos-arm64
             os: macos-latest
@@ -36,6 +38,7 @@ jobs:
             arch: arm64
             family: darwin
             binary_name: wp-go-downloader
+            file_extension: ""
 
           - build: macos-x86_64
             os: macos-latest
@@ -43,7 +46,7 @@ jobs:
             arch: amd64
             family: darwin
             binary_name: wp-go-downloader
-
+            file_extension: ""
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -75,8 +78,8 @@ jobs:
 
           dirname="${binary_name}-${{ env.VERSION }}-${{ matrix.family }}"
           mkdir "${dirname}"
-          cp "${{ matrix.binary_name }}" "${binary_name}_${{ matrix.family }}_${{ matrix.arch }}_${{ env.VERSION }}"
-          echo "ASSET=${binary_name}_${{ matrix.family }}_${{ matrix.arch }}_${{ env.VERSION }}" >> $GITHUB_ENV 
+          cp "${{ matrix.binary_name }}" "${binary_name}_${{ matrix.family }}_${{ matrix.arch }}_${{ env.VERSION }}${{ matrix.file_extension }}"
+          echo "ASSET=${binary_name}_${{ matrix.family }}_${{ matrix.arch }}_${{ env.VERSION }}${{ matrix.file_extension }}" >> $GITHUB_ENV 
           ls -l
           echo $GITHUB_ENV
 
