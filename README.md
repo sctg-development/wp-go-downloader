@@ -1,43 +1,48 @@
 # WordPress Website Downloader
 
-A robust Go-based tool for downloading WordPress websites for offline viewing. This project allows you to create a complete offline copy of a WordPress website while maintaining its structure, assets, and navigation.
+A robust Go-based tool for downloading WordPress websites for offline viewing. This project creates a complete offline copy of WordPress websites while maintaining structure, assets, and navigation.
 
 ## Disclaimer
 
-This project designed for downloading a specific WordPress website but has been generalized to work with many WordPress sites.  
-A such downloader probably needs to be adapted for each website.  
-It is not intended for use on websites that you do not own or have permission to download. Always respect the terms of service and copyright of the websites you are working with.
+This tool was originally designed for downloading a specific WordPress website but has been generalized to work with many WordPress sites.  
+The downloader may need customization for specific websites.  
+**Important:** Only use this tool on websites you own or have explicit permission to download. Always respect terms of service and copyright.
 
 ## Star the project
 
-**If you appreciate my work, please consider giving it a star! 🤩**
-
+**If you find this tool useful, please consider giving it a star! 🤩**
 
 ## Features
 
-- Downloads complete WordPress sites with all assets (images, CSS, JavaScript, fonts, etc.)
-- Processes CSS files to extract and download referenced resources
-- Handles WordPress-specific URL patterns and cache-busting query parameters
-- Supports multilingual sites with proper language directory handling
-- Removes Google Analytics, Google Tag Manager, and other tracking scripts
-- Converts absolute URLs to relative for proper offline navigation
-- Maintains the original directory structure
-- Handles srcset attributes in image tags
-- Recursive processing of HTML pages found during crawling
+- Complete website downloads with all assets (images, CSS, JavaScript, fonts)
+- CSS processing to extract and download referenced resources
+- WordPress-specific URL pattern handling and cache-busting parameter removal
+- Multilingual site support with proper language directory handling
+- Tracking script removal (Google Analytics, Google Tag Manager)
+- Absolute to relative URL conversion for offline navigation
+- Original directory structure preservation
+- Support for responsive images (`srcset` attributes)
+- Recursive HTML page processing
+- **Configurable concurrent downloads**
+- **URL filtering with include/exclude patterns**
+- **Automatic retry on download failures**
+- **Custom output directory support**
+- **Adjustable HTTP timeout settings**
+- **Detailed logging options**
 
 ## Installation
 
 ### Prerequisites
 
-- Go 1.16 or higher
-- git
+- Go 1.20 or higher
+- Git
 
 ### Building from Source
 
 ```bash
 # Clone the repository
 git clone https://github.com/sctg-development/wp-go-downloader.git
-cd /wp-go-downloader
+cd wp-go-downloader
 
 # Build the project
 go build ./wp-go-downloader.go
@@ -45,54 +50,68 @@ go build ./wp-go-downloader.go
 
 ## Usage
 
+### Basic Usage
+
 ```bash
-# Basic usage with default options
-./wp-downloader
+# With default options (downloads example.com)
+./wp-go-downloader
 
 # Specify a custom WordPress site URL
-./wp-downloader -url https://mywordpresssite.com
+./wp-go-downloader -url https://mywordpresssite.com
 ```
 
-The tool will:
+### Advanced Options
 
-1. Download the initial HTML page
-2. Parse and find all assets and links
-3. Recursively process linked HTML pages
-4. Download all referenced files (images, CSS, JS, etc.)
-5. Process CSS files to extract and download referenced resources
-6. Convert absolute URLs to relative for offline navigation
-7. Save everything to a directory named after the site's domain
+```bash
+# Set concurrency, output directory, and timeout
+./wp-go-downloader -url https://mywordpresssite.com -concurrency 15 -outdir my-site-backup -timeout 60
 
-The resulting offline website will be saved in a folder with the domain name.
+# Filter URLs to download only specific files
+./wp-go-downloader -url https://mywordpresssite.com -include "\.(jpg|png|gif)$" -exclude "/wp-admin/"
+```
 
-## How It Works
+### Command Line Reference
 
-1. The tool fetches the HTML of the provided URL
-2. It parses the HTML to extract all URLs (scripts, images, CSS, links, etc.)
-3. It downloads all assets and processes them
-4. For each HTML page found, it repeats the process recursively
-5. It post-processes all HTML and CSS files to ensure proper offline functionality
-6. It cleans up tracking scripts for improved privacy
+| Option | Description | Default |
+|--------|-------------|---------|
+| `-url` | Website URL to download | https://www.example.com/ |
+| `-concurrency` | Maximum parallel downloads | 10 |
+| `-outdir` | Custom output directory | Domain name of the website |
+| `-include` | Only process URLs matching this regex | None (process all URLs) |
+| `-exclude` | Skip URLs matching this regex | None (process all URLs) |
+| `-timeout` | HTTP request timeout in seconds | 30 |
+| `-verbose` | Enable detailed logging | false |
+
+## Process Overview
+
+The tool performs the following steps:
+
+1. Downloads the initial HTML page
+2. Parses HTML to extract all URLs (scripts, images, CSS, links)
+3. Downloads all assets concurrently within the concurrency limit
+4. Recursively processes any HTML pages found during download
+5. Post-processes HTML and CSS files for offline functionality
+6. Removes tracking scripts and optimizes files
+7. Saves the complete website to the specified output directory
 
 ## Limitations
 
-- Does not handle dynamic content loaded via AJAX
-- Cannot execute JavaScript
-- Not designed for single-page applications (SPAs)
-- Limited support for complex frontend frameworks
+- No support for content loaded dynamically via AJAX
+- Cannot execute JavaScript to render dynamic content
+- Not compatible with single-page applications (SPAs)
+- Limited functionality with complex frontend frameworks
+- May require adjustments for heavily customized WordPress sites
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.  
-Keep in mind that this tool is designed for a specific use case and may require adjustments for different WordPress sites.  
-Your welcome to open some Pull Requests to improve the tool or add new features for generalize this tool.
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+This tool was designed for specific use cases and may need adjustments for different WordPress installations. You're welcome to open Pull Requests to improve the tool or add new features to make it more versatile.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details.
+This project is licensed under the MIT License - see the LICENSE.md file for details.
 
 ## Credits
 
 Created by Ronan Le Meillat.
-
-This project was initially developed to download a specific WordPress website but has been generalized to work with most WordPress sites.
