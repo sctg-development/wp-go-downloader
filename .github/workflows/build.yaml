@@ -34,14 +34,14 @@ jobs:
             os: macos-latest
             target: aarch64-apple-darwin
             arch: arm64
-            family: macos
+            family: darwin
             binay_name: wp-go-downloader
 
           - build: macos-x86_64
             os: macos-latest
             target: x86_64-apple-darwin
             arch: amd64
-            family: macos
+            family: darwin
             binay_name: wp-go-downloader
 
     steps:
