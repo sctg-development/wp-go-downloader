@@ -674,11 +674,35 @@ func (e *Extractor) SaveFiles() error {
 	return nil
 }
 
-// DownloadFile downloads a file from URL and saves it to outputPath
+// DownloadFile with retry logic
 func (e *Extractor) DownloadFile(url string, outputPath string) error {
+	maxRetries := 3
+	retryDelay := 1 * time.Second
+
 	// Remove query string from URL for downloading
 	url = strings.Split(url, "?")[0]
 
+	var err error
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		err = e.downloadFileOnce(url, outputPath)
+		if err == nil {
+			return nil // Success
+		}
+
+		// If this wasn't the last attempt, sleep before retry
+		if attempt < maxRetries-1 {
+			fmt.Printf("Retrying download of %s (attempt %d/%d)\n", url, attempt+1, maxRetries)
+			time.Sleep(retryDelay)
+			// Exponential backoff
+			retryDelay *= 2
+		}
+	}
+
+	return fmt.Errorf("failed after %d attempts: %v", maxRetries, err)
+}
+
+// Actual download implementation
+func (e *Extractor) downloadFileOnce(url, outputPath string) error {
 	// Check if this is a directory URL (ending with /) that we need to save as index.html
 	if strings.HasSuffix(url, "/") {
 		// Make sure we create the appropriate directory structure
