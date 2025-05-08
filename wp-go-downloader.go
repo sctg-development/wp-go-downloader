@@ -64,6 +64,8 @@ var (
 	baseURL string
 	// Map to track directory URLs (ending with /)
 	directoryURLs = make(map[string]bool)
+	// Maximum concurrent downloads
+	maxConcurrency int
 )
 
 // Extractor manages the process of downloading a website
@@ -659,9 +661,8 @@ func (e *Extractor) SaveFiles() error {
 		return fmt.Errorf("failed to clean output directory: %v", err)
 	}
 
-	// Use a semaphore to limit concurrency
-	const maxWorkers = 10
-	sem := semaphore.NewWeighted(maxWorkers)
+	// Use a semaphore to limit concurrency based on the maxConcurrency setting
+	sem := semaphore.NewWeighted(int64(maxConcurrency))
 	ctx := context.Background()
 
 	var wg sync.WaitGroup
@@ -671,7 +672,7 @@ func (e *Extractor) SaveFiles() error {
 	total := len(e.ScrapedURLs)
 	var counter int32
 
-	fmt.Printf("Downloading %d files...\n", total)
+	fmt.Printf("Downloading %d files with %d workers...\n", total, maxConcurrency)
 
 	// Download each file concurrently
 	for url := range e.ScrapedURLs {
@@ -1459,8 +1460,25 @@ func isHTMLPage(urlStr string) bool {
 
 func main() {
 	// Parse command line arguments
-	var targetURL string
+	var (
+		targetURL      string
+		maxDepth       int
+		concurrency    int
+		customOutDir   string
+		includePattern string
+		excludePattern string
+		timeout        int
+		verbose        bool
+	)
+
 	flag.StringVar(&targetURL, "url", defaultURL, "URL to download")
+	flag.IntVar(&maxDepth, "depth", 5, "Maximum crawl depth")
+	flag.IntVar(&concurrency, "concurrency", 10, "Maximum concurrent downloads")
+	flag.StringVar(&customOutDir, "outdir", "", "Custom output directory")
+	flag.StringVar(&includePattern, "include", "", "Only include URLs matching this regex")
+	flag.StringVar(&excludePattern, "exclude", "", "Exclude URLs matching this regex")
+	flag.IntVar(&timeout, "timeout", 30, "HTTP timeout in seconds")
+	flag.BoolVar(&verbose, "verbose", false, "Enable verbose logging")
 	flag.Parse()
 
 	// If URL provided as positional argument, use it
@@ -1469,19 +1487,35 @@ func main() {
 		targetURL = args[0]
 	}
 
+	// Set HTTP client timeout
+	client.Timeout = time.Duration(timeout) * time.Second
+
+	// Set maximum concurrency
+	maxConcurrency = concurrency
+
 	// Extract domain name to use as output folder
 	parsedURL, err := url.Parse(targetURL)
 	if err != nil {
 		fmt.Printf("Invalid URL: %v\n", err)
 		os.Exit(1)
 	}
-	outputFolder = parsedURL.Hostname()
+
+	// Set base domain for URL matching regardless of output folder
 	baseDomain = parsedURL.Hostname()
 
 	// Strip "www." prefix from base domain if present
 	if strings.HasPrefix(baseDomain, "www.") {
 		baseDomain = baseDomain[4:]
 	}
+
+	// Use custom output directory if provided, otherwise use domain name
+	if customOutDir != "" {
+		outputFolder = customOutDir
+	} else {
+		outputFolder = parsedURL.Hostname()
+	}
+
+	fmt.Printf("Saving website to: %s\n", filepath.Join(workspace, outputFolder))
 
 	// Create a new extractor
 	fmt.Printf("Extracting files from %s\n\n", targetURL)
