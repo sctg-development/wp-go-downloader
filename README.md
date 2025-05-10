@@ -5,12 +5,22 @@ A robust Go-based tool for downloading WordPress websites for offline viewing. T
 ## Disclaimer
 
 This tool was originally designed for downloading a specific WordPress website but has been generalized to work with many WordPress sites.  
-The downloader may need customization for specific websites.  
+**Important:** This downloader will almost certainly need to be forked and customized for each website you plan to download. WordPress sites vary significantly in their structure and implementation.  
 **Important:** Only use this tool on websites you own or have explicit permission to download. Always respect terms of service and copyright.
 
 ## Star the project
 
 **If you find this tool useful, please consider giving it a star! 🤩**
+
+## When to Fork This Project
+
+You should consider forking this project when:
+
+- The target website has custom WordPress plugins that alter HTML structure
+- You need to handle specific URL patterns unique to your website
+- You encounter parsing errors with the default implementation
+- You need to add custom post-processing for particular content types
+- The website uses non-standard JavaScript implementations
 
 ## Features
 
